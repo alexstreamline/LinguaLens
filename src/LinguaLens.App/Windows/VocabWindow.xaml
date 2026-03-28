@@ -1,0 +1,32 @@
+<Window x:Class="LinguaLens.App.Windows.VocabWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Словарь — LinguaLens"
+        Width="800" Height="550"
+        ShowInTaskbar="False">
+    <DockPanel>
+        <!-- Toolbar -->
+        <ToolBar DockPanel.Dock="Top">
+            <ComboBox x:Name="LangFilter" Width="100" />
+            <TextBox x:Name="SearchBox" Width="160" Margin="4,0" />
+            <Button x:Name="ExportCsvButton" Content="Экспорт CSV" Margin="4,0" />
+            <Button x:Name="ExportAnkiButton" Content="Экспорт Anki" Margin="4,0" />
+            <Button x:Name="DeleteButton" Content="Удалить выбранные" Margin="4,0" />
+        </ToolBar>
+
+        <!-- Data grid -->
+        <DataGrid x:Name="VocabGrid"
+                  AutoGenerateColumns="False"
+                  IsReadOnly="False"
+                  SelectionMode="Extended">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="Слово" Binding="{Binding Word}" Width="120" />
+                <DataGridTextColumn Header="Язык" Binding="{Binding DetectedLang}" Width="60" />
+                <DataGridTextColumn Header="Перевод" Binding="{Binding Translation}" Width="*" />
+                <DataGridTextColumn Header="Источник" Binding="{Binding SourceApp}" Width="120" />
+                <DataGridTextColumn Header="Дата" Binding="{Binding CreatedAt, StringFormat=\{0:dd.MM.yyyy\}}" Width="90" />
+                <DataGridCheckBoxColumn Header="Изучено" Binding="{Binding IsLearned}" Width="70" />
+            </DataGrid.Columns>
+        </DataGrid>
+    </DockPanel>
+</Window>
