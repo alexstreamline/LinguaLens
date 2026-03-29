@@ -1,5 +1,9 @@
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
 using LinguaLens.Core.Interfaces;
 using LinguaLens.Core.Models;
+using Microsoft.EntityFrameworkCore;
 
 namespace LinguaLens.Infrastructure.Data;
 
@@ -10,18 +14,45 @@ namespace LinguaLens.Infrastructure.Data;
 /// </summary>
 public class SqliteTranslationCache(LinguaLensDbContext db) : ITranslationCache
 {
-    public Task<TranslationResult?> GetAsync(string cacheKey)
+    public async Task<TranslationResult?> GetAsync(string cacheKey)
     {
-        throw new NotImplementedException();
+        var entry = await db.TranslationCache
+            .FirstOrDefaultAsync(e => e.CacheKey == cacheKey);
+
+        if (entry is null)
+            return null;
+
+        entry.HitCount++;
+        await db.SaveChangesAsync();
+
+        return JsonSerializer.Deserialize<TranslationResult>(entry.ResponseJson,
+            new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
     }
 
-    public Task SetAsync(string cacheKey, TranslationResult result)
+    public async Task SetAsync(string cacheKey, TranslationResult result)
     {
-        throw new NotImplementedException();
+        var existing = await db.TranslationCache
+            .FirstOrDefaultAsync(e => e.CacheKey == cacheKey);
+
+        if (existing is not null)
+            return;
+
+        db.TranslationCache.Add(new CacheEntry
+        {
+            CacheKey = cacheKey,
+            Word = result.Word,
+            ResponseJson = JsonSerializer.Serialize(result),
+            CreatedAt = DateTime.UtcNow,
+            HitCount = 0
+        });
+        await db.SaveChangesAsync();
     }
 
     public string BuildKey(string lang, string word, string sentence)
     {
-        throw new NotImplementedException();
+        var context = sentence.Length > 100 ? sentence[..100] : sentence;
+        var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(context));
+        var hash = Convert.ToHexString(bytes)[..8].ToLower();
+        return $"{lang}:{word.ToLower()}:{hash}";
     }
 }

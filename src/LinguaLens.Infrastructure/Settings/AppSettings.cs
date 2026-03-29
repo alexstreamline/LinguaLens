@@ -80,12 +80,29 @@ public class AppSettings : IAppSettings, INotifyPropertyChanged
 
     public void Save()
     {
-        throw new NotImplementedException();
+        var dir = Path.GetDirectoryName(SettingsPath)!;
+        Directory.CreateDirectory(dir);
+        var json = System.Text.Json.JsonSerializer.Serialize(this, new System.Text.Json.JsonSerializerOptions
+        {
+            WriteIndented = true
+        });
+        File.WriteAllText(SettingsPath, json);
     }
 
     public static AppSettings Load()
     {
-        throw new NotImplementedException();
+        if (!File.Exists(SettingsPath))
+            return new AppSettings();
+
+        try
+        {
+            var json = File.ReadAllText(SettingsPath);
+            return System.Text.Json.JsonSerializer.Deserialize<AppSettings>(json) ?? new AppSettings();
+        }
+        catch
+        {
+            return new AppSettings();
+        }
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
