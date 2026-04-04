@@ -40,7 +40,7 @@ public partial class App : WpfApplication
         var db = _serviceProvider.GetRequiredService<LinguaLensDbContext>();
         try
         {
-            db.Database.EnsureCreated(); // TODO: replace with Migrate() once migrations are generated
+            db.Database.Migrate();
             db.Database.ExecuteSqlRaw("PRAGMA journal_mode=WAL;");
         }
         catch { /* non-critical on subsequent runs */ }

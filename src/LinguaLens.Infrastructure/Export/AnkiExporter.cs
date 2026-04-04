@@ -48,7 +48,7 @@ public class AnkiExporter(CsvVocabExporter csvExporter) : IVocabExporter
 
     private static async Task CreateAnkiDatabaseAsync(string dbPath, IReadOnlyList<VocabEntry> entries)
     {
-        await using var conn = new SqliteConnection($"Data Source={dbPath};");
+        await using var conn = new SqliteConnection($"Data Source={dbPath};Pooling=False;");
         await conn.OpenAsync();
 
         await ExecAsync(conn, "PRAGMA journal_mode=WAL;");

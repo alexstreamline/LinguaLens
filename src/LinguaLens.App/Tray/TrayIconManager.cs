@@ -76,10 +76,12 @@ public sealed class TrayIconManager : IDisposable
     {
         try
         {
+            // HWND_MESSAGE = -3: message-only window — no visual, no taskbar, just receives WM_HOTKEY
             var parameters = new HwndSourceParameters("LinguaLensHotkey")
             {
                 Width = 0, Height = 0,
-                WindowStyle = 0x800000 // WS_BORDER minimal
+                WindowStyle = 0,
+                ParentWindow = new IntPtr(-3)
             };
             _hwndSource = new HwndSource(parameters);
             _hwndSource.AddHook(WndProc);
