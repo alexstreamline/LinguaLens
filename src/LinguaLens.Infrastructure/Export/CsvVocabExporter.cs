@@ -9,13 +9,34 @@ namespace LinguaLens.Infrastructure.Export;
 /// </summary>
 public class CsvVocabExporter : IVocabExporter
 {
-    public Task ExportCsvAsync(IReadOnlyList<VocabEntry> entries, string filePath)
+    public async Task ExportCsvAsync(IReadOnlyList<VocabEntry> entries, string filePath)
     {
-        throw new NotImplementedException();
+        await using var stream = new FileStream(filePath, FileMode.Create, FileAccess.Write);
+        await using var writer = new StreamWriter(stream, new System.Text.UTF8Encoding(encoderShouldEmitUTF8Identifier: true));
+
+        await writer.WriteLineAsync("Word,Language,Translation,PartOfSpeech,Context,Source,Date,Learned");
+
+        foreach (var entry in entries)
+        {
+            await writer.WriteLineAsync(string.Join(",",
+                CsvEscape(entry.Word),
+                CsvEscape(entry.DetectedLang),
+                CsvEscape(entry.Translation),
+                CsvEscape(entry.Pos),
+                CsvEscape(entry.ContextSentence),
+                CsvEscape(entry.SourceApp),
+                entry.CreatedAt.ToString("yyyy-MM-dd"),
+                entry.IsLearned ? "Yes" : "No"));
+        }
     }
 
     public Task ExportAnkiAsync(IReadOnlyList<VocabEntry> entries, string filePath)
+        => throw new NotSupportedException("Use AnkiExporter for Anki export.");
+
+    private static string CsvEscape(string value)
     {
-        throw new NotImplementedException();
+        if (value.Contains(',') || value.Contains('"') || value.Contains('\n') || value.Contains('\r'))
+            return $"\"{value.Replace("\"", "\"\"")}\"";
+        return value;
     }
 }

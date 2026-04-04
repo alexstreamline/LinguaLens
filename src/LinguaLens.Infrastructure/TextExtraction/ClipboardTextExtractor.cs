@@ -11,12 +11,21 @@ namespace LinguaLens.Infrastructure.TextExtraction;
 public class ClipboardTextExtractor : ITextExtractor
 {
     public Task<WordExtractionResult?> ExtractWordAtPointAsync(Point screenPoint)
-    {
-        return Task.FromResult<WordExtractionResult?>(null);
-    }
+        => Task.FromResult<WordExtractionResult?>(null);
 
     public Task<string?> ExtractSelectedTextAsync()
     {
-        throw new NotImplementedException();
+        return Application.Current.Dispatcher.InvokeAsync(() =>
+        {
+            try
+            {
+                var text = Clipboard.GetText();
+                return string.IsNullOrWhiteSpace(text) ? null : text;
+            }
+            catch
+            {
+                return (string?)null;
+            }
+        }).Task;
     }
 }

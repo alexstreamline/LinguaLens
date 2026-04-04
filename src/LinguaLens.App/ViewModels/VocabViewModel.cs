@@ -13,7 +13,6 @@ public class VocabViewModel : INotifyPropertyChanged
 
     private string? _langFilter;
     private string _searchText = "";
-    private bool? _isLearnedFilter;
 
     public ObservableCollection<VocabEntry> Entries { get; } = [];
 
@@ -35,25 +34,33 @@ public class VocabViewModel : INotifyPropertyChanged
         _exporter = exporter;
     }
 
-    public Task LoadAsync()
+    public async Task LoadAsync()
     {
-        throw new NotImplementedException();
+        var all = await _repository.GetAllAsync(_langFilter);
+
+        var filtered = string.IsNullOrWhiteSpace(_searchText)
+            ? all
+            : all.Where(e =>
+                e.Word.Contains(_searchText, StringComparison.OrdinalIgnoreCase) ||
+                e.Translation.Contains(_searchText, StringComparison.OrdinalIgnoreCase)).ToList();
+
+        Entries.Clear();
+        foreach (var entry in filtered)
+            Entries.Add(entry);
     }
 
-    public Task DeleteSelectedAsync(IReadOnlyList<VocabEntry> selected)
+    public async Task DeleteSelectedAsync(IReadOnlyList<VocabEntry> selected)
     {
-        throw new NotImplementedException();
+        foreach (var entry in selected)
+            await _repository.DeleteAsync(entry.Id);
+        await LoadAsync();
     }
 
     public Task ExportCsvAsync(string filePath)
-    {
-        throw new NotImplementedException();
-    }
+        => _exporter.ExportCsvAsync(Entries.ToList(), filePath);
 
     public Task ExportAnkiAsync(string filePath)
-    {
-        throw new NotImplementedException();
-    }
+        => _exporter.ExportAnkiAsync(Entries.ToList(), filePath);
 
     public event PropertyChangedEventHandler? PropertyChanged;
 

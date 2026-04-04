@@ -33,21 +33,66 @@ public sealed class DebounceController : IDisposable
         _settings = settings;
         _overlay = overlay;
         _hook = hook;
-        throw new NotImplementedException();
+        _hook.MouseMoved += OnMouseMoved;
     }
 
     private void OnMouseMoved(object? sender, WpfPoint point)
     {
-        throw new NotImplementedException();
+        _lastPoint = point;
+        _cts?.Cancel();
+
+        var debounceMs = _settings.DebounceMs;
+        _debounceTimer?.Dispose();
+        _debounceTimer = new System.Threading.Timer(_ =>
+        {
+            _debounceTimer?.Dispose();
+            _debounceTimer = null;
+
+            var cts = new CancellationTokenSource();
+            _cts = cts;
+            _ = ProcessPointAsync(_lastPoint, cts.Token);
+        }, null, debounceMs, Timeout.Infinite);
     }
 
     private async Task ProcessPointAsync(WpfPoint point, CancellationToken ct)
     {
-        throw new NotImplementedException();
+        try
+        {
+            await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+            {
+                _overlay.ShowAtPoint(point);
+                _overlay.ShowLoading();
+            });
+
+            var result = await _orchestrator.ProcessHoverAsync(point, ct);
+            if (ct.IsCancellationRequested) return;
+
+            if (result is null)
+            {
+                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() => _overlay.HideOverlay());
+                return;
+            }
+
+            // Skip if same word as last translation
+            if (result.Word == _lastTranslatedWord) return;
+            _lastTranslatedWord = result.Word;
+
+            await System.Windows.Application.Current.Dispatcher.InvokeAsync(() => _overlay.ShowResult(result));
+        }
+        catch (OperationCanceledException) { }
+        catch
+        {
+            if (!ct.IsCancellationRequested)
+            {
+                await System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+                    _overlay.ShowError("Не удалось получить перевод"));
+            }
+        }
     }
 
     public void Dispose()
     {
+        _hook.MouseMoved -= OnMouseMoved;
         _debounceTimer?.Dispose();
         _cts?.Dispose();
     }

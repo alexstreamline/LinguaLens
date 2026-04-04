@@ -10,12 +10,12 @@ namespace LinguaLens.Infrastructure.TextExtraction;
 public class CompositeTextExtractor(UiaTextExtractor uia, ClipboardTextExtractor clipboard) : ITextExtractor
 {
     public Task<WordExtractionResult?> ExtractWordAtPointAsync(Point screenPoint)
-    {
-        throw new NotImplementedException();
-    }
+        => uia.ExtractWordAtPointAsync(screenPoint);
 
-    public Task<string?> ExtractSelectedTextAsync()
+    public async Task<string?> ExtractSelectedTextAsync()
     {
-        throw new NotImplementedException();
+        var result = await uia.ExtractSelectedTextAsync();
+        if (!string.IsNullOrEmpty(result)) return result;
+        return await clipboard.ExtractSelectedTextAsync();
     }
 }
