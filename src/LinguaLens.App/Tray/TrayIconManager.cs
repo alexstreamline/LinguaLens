@@ -9,7 +9,7 @@ namespace LinguaLens.App.Tray;
 
 /// <summary>
 /// Manages the system tray icon using System.Windows.Forms.NotifyIcon.
-/// Context menu: Toggle (Enabled/Disabled), Словарь, Настройки, Выход.
+/// Context menu: Token usage (info), Toggle (Enabled/Disabled), Словарь, Настройки, Выход.
 /// Icon: green = active, grey = paused.
 /// Registers global hotkey via RegisterHotKey Win32 API.
 /// </summary>
@@ -19,23 +19,33 @@ public sealed class TrayIconManager : IDisposable
     [DllImport("user32.dll")] private static extern bool UnregisterHotKey(IntPtr hWnd, int id);
 
     private const int HotkeyId = 9001;
+    private const int TranslateHotkeyId = 9002;
 
     private NotifyIcon? _notifyIcon;
     private HwndSource? _hwndSource;
     private bool _isEnabled = true;
     private Icon? _iconActive;
     private Icon? _iconPaused;
+    private ToolStripMenuItem? _usageMenuItem;
+    private readonly ITokenUsageRepository? _usageRepo;
+    private readonly IAppSettings? _settings;
 
     public event EventHandler? ToggleRequested;
+    public event EventHandler? TranslateRequested;
     public event EventHandler? OpenVocabRequested;
     public event EventHandler? OpenSettingsRequested;
 
-    public TrayIconManager(IAppSettings settings)
+    public TrayIconManager(IAppSettings settings, ITokenUsageRepository? usageRepo = null)
     {
+        _usageRepo = usageRepo;
+        _settings = settings;
+
         _iconActive = CreateDotIcon(Color.FromArgb(34, 197, 94));   // green
         _iconPaused = CreateDotIcon(Color.FromArgb(156, 163, 175)); // gray
 
         var menu = new ContextMenuStrip();
+
+        _usageMenuItem = new ToolStripMenuItem("Токены сегодня: —") { Enabled = false };
         var toggleItem = new ToolStripMenuItem("Выключить") { Name = "Toggle" };
         var vocabItem = new ToolStripMenuItem("Словарь");
         var settingsItem = new ToolStripMenuItem("Настройки");
@@ -46,7 +56,10 @@ public sealed class TrayIconManager : IDisposable
         settingsItem.Click += (_, _) => OpenSettingsRequested?.Invoke(this, EventArgs.Empty);
         exitItem.Click += (_, _) => System.Windows.Application.Current.Shutdown();
 
-        menu.Items.AddRange([toggleItem, new ToolStripSeparator(), vocabItem, settingsItem, new ToolStripSeparator(), exitItem]);
+        menu.Items.AddRange([_usageMenuItem, new ToolStripSeparator(), toggleItem,
+            new ToolStripSeparator(), vocabItem, settingsItem, new ToolStripSeparator(), exitItem]);
+
+        menu.Opening += async (_, _) => await UpdateTokenMenuItemAsync();
 
         _notifyIcon = new NotifyIcon
         {
@@ -56,7 +69,8 @@ public sealed class TrayIconManager : IDisposable
             Visible = true
         };
 
-        RegisterHotkey(settings.HotKey);
+        RegisterHotkey(settings.HotKey, HotkeyId);
+        RegisterHotkey(settings.TranslateHotKey, TranslateHotkeyId);
     }
 
     public void SetEnabled(bool enabled)
@@ -72,33 +86,68 @@ public sealed class TrayIconManager : IDisposable
             item.Text = enabled ? "Выключить" : "Включить";
     }
 
-    private void RegisterHotkey(string hotKeyStr)
+    public void ShowWarning(string title, string message)
+    {
+        _notifyIcon?.ShowBalloonTip(5000, title, message, ToolTipIcon.Warning);
+    }
+
+    private async Task UpdateTokenMenuItemAsync()
+    {
+        if (_usageMenuItem is null || _usageRepo is null || _settings is null) return;
+        try
+        {
+            var summary = await _usageRepo.GetTodaySummaryAsync();
+            var limit = _settings.DailyTokenLimit;
+            var pct = limit > 0 ? (double)summary.TotalTokens / limit * 100 : 0;
+            var text = limit > 0
+                ? $"Токены сегодня: {summary.TotalTokens:N0} ({pct:F0}% от {limit:N0})"
+                : $"Токены сегодня: {summary.TotalTokens:N0}";
+            _usageMenuItem.Text = text;
+        }
+        catch
+        {
+            _usageMenuItem.Text = "Токены сегодня: —";
+        }
+    }
+
+    private void RegisterHotkey(string hotKeyStr, int id)
     {
         try
         {
-            // HWND_MESSAGE = -3: message-only window — no visual, no taskbar, just receives WM_HOTKEY
-            var parameters = new HwndSourceParameters("LinguaLensHotkey")
+            if (_hwndSource is null)
             {
-                Width = 0, Height = 0,
-                WindowStyle = 0,
-                ParentWindow = new IntPtr(-3)
-            };
-            _hwndSource = new HwndSource(parameters);
-            _hwndSource.AddHook(WndProc);
+                var parameters = new HwndSourceParameters("LinguaLensHotkey")
+                {
+                    Width = 0, Height = 0,
+                    WindowStyle = 0,
+                    ParentWindow = new IntPtr(-3)
+                };
+                _hwndSource = new HwndSource(parameters);
+                _hwndSource.AddHook(WndProc);
+            }
 
             var (modifiers, vk) = ParseHotKey(hotKeyStr);
             if (vk != 0)
-                RegisterHotKey(_hwndSource.Handle, HotkeyId, modifiers, vk);
+                RegisterHotKey(_hwndSource.Handle, id, modifiers, vk);
         }
         catch { /* hotkey registration is non-critical */ }
     }
 
     private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
     {
-        if (msg == 0x0312 && wParam.ToInt32() == HotkeyId) // WM_HOTKEY
+        if (msg == 0x0312) // WM_HOTKEY
         {
-            ToggleRequested?.Invoke(this, EventArgs.Empty);
-            handled = true;
+            var id = wParam.ToInt32();
+            if (id == HotkeyId)
+            {
+                ToggleRequested?.Invoke(this, EventArgs.Empty);
+                handled = true;
+            }
+            else if (id == TranslateHotkeyId)
+            {
+                TranslateRequested?.Invoke(this, EventArgs.Empty);
+                handled = true;
+            }
         }
         return IntPtr.Zero;
     }
@@ -143,6 +192,7 @@ public sealed class TrayIconManager : IDisposable
         if (_hwndSource is not null)
         {
             UnregisterHotKey(_hwndSource.Handle, HotkeyId);
+            UnregisterHotKey(_hwndSource.Handle, TranslateHotkeyId);
             _hwndSource.Dispose();
         }
         _notifyIcon?.Dispose();

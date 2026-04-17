@@ -18,11 +18,14 @@ public class AppSettings : IAppSettings, INotifyPropertyChanged
     private string _apiKey = "";
     private int _debounceMs = 400;
     private string _hotKey = "Alt+Shift+L";
+    private string _translateHotKey = "Ctrl+Shift+Space";
     private bool _detectEnglish = true;
     private bool _detectSpanish = true;
     private bool _autoSaveToVocab = true;
     private string _theme = "light";
     private bool _startWithWindows;
+    private int _dailyTokenLimit = 100_000;
+    private bool _warnAtEightyPercent = true;
 
     public string LlmProvider
     {
@@ -46,6 +49,12 @@ public class AppSettings : IAppSettings, INotifyPropertyChanged
     {
         get => _hotKey;
         set { _hotKey = value; OnPropertyChanged(); }
+    }
+
+    public string TranslateHotKey
+    {
+        get => _translateHotKey;
+        set { _translateHotKey = value; OnPropertyChanged(); }
     }
 
     public bool DetectEnglish
@@ -76,6 +85,18 @@ public class AppSettings : IAppSettings, INotifyPropertyChanged
     {
         get => _startWithWindows;
         set { _startWithWindows = value; OnPropertyChanged(); }
+    }
+
+    public int DailyTokenLimit
+    {
+        get => _dailyTokenLimit;
+        set { _dailyTokenLimit = value; OnPropertyChanged(); }
+    }
+
+    public bool WarnAtEightyPercent
+    {
+        get => _warnAtEightyPercent;
+        set { _warnAtEightyPercent = value; OnPropertyChanged(); }
     }
 
     public void Save()
