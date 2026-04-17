@@ -73,5 +73,22 @@ public class UiaTextExtractor : ITextExtractor
         });
     }
 
-    public Task<string?> ExtractSelectedTextAsync() => Task.FromResult<string?>(null);
+    public Task<string?> ExtractSelectedTextAsync()
+    {
+        return Task.Run<string?>(() =>
+        {
+            try
+            {
+                var focused = AutomationElement.FocusedElement;
+                if (focused is null) return null;
+                if (!focused.TryGetCurrentPattern(TextPattern.Pattern, out var obj)) return null;
+                var tp = (TextPattern)obj;
+                var ranges = tp.GetSelection();
+                if (ranges.Length == 0) return null;
+                var text = ranges[0].GetText(-1).Trim();
+                return string.IsNullOrWhiteSpace(text) ? null : text;
+            }
+            catch { return null; }
+        });
+    }
 }
