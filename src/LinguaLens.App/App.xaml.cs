@@ -1,7 +1,4 @@
-using WpfApplication = System.Windows.Application;
 using System.IO;
-using System.Net.Http;
-using System.Net.Http.Headers;
 using System.Windows;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -19,6 +16,7 @@ using LinguaLens.App.Tray;
 using LinguaLens.App.Overlay;
 using LinguaLens.App.ViewModels;
 using LinguaLens.App.Windows;
+using WpfApplication = System.Windows.Application;
 
 namespace LinguaLens.App;
 
@@ -34,16 +32,27 @@ public partial class App : WpfApplication
         base.OnStartup(e);
         ShutdownMode = ShutdownMode.OnExplicitShutdown;
 
-        _serviceProvider = (ServiceProvider)BuildServices();
+        _serviceProvider = ConfigureServices();
 
-        // Apply DB schema
+        // Apply EF migrations and enable WAL
         var db = _serviceProvider.GetRequiredService<LinguaLensDbContext>();
-        try
+        db.Database.Migrate();
+        db.Database.ExecuteSqlRaw("PRAGMA journal_mode=WAL;");
+
+        var settings = _serviceProvider.GetRequiredService<IAppSettings>();
+
+        // Apply initial theme
+        ApplyTheme(settings.Theme);
+
+        // Subscribe to theme changes
+        if (settings is System.ComponentModel.INotifyPropertyChanged notifySettings)
         {
-            db.Database.Migrate();
-            db.Database.ExecuteSqlRaw("PRAGMA journal_mode=WAL;");
+            notifySettings.PropertyChanged += (_, pe) =>
+            {
+                if (pe.PropertyName == nameof(IAppSettings.Theme))
+                    ApplyTheme(settings.Theme);
+            };
         }
-        catch { /* non-critical on subsequent runs */ }
 
         // Start mouse hook on dedicated STA thread
         _mouseHook = _serviceProvider.GetRequiredService<GlobalMouseHook>();
@@ -63,6 +72,12 @@ public partial class App : WpfApplication
             if (!isEnabled) _serviceProvider.GetRequiredService<OverlayWindow>().HideOverlay();
         };
 
+        _trayIconManager.TranslateRequested += (_, _) =>
+        {
+            if (isEnabled)
+                _ = _debounceController.TriggerManualAsync();
+        };
+
         _trayIconManager.OpenVocabRequested += (_, _) =>
         {
             var vm = _serviceProvider.GetRequiredService<VocabViewModel>();
@@ -70,19 +85,36 @@ public partial class App : WpfApplication
             win.Show();
         };
 
-        _trayIconManager.OpenSettingsRequested += (_, _) =>
+        void OpenSettings()
         {
-            var settings = _serviceProvider.GetRequiredService<IAppSettings>();
-            var win = new SettingsWindow(settings);
+            var s = _serviceProvider.GetRequiredService<IAppSettings>();
+            var usageRepo = _serviceProvider.GetRequiredService<ITokenUsageRepository>();
+            var win = new SettingsWindow(s, usageRepo);
             win.ShowDialog();
-        };
+        }
+
+        _trayIconManager.OpenSettingsRequested += (_, _) => OpenSettings();
+
+        // Wire OverlayWindow.OpenSettingsRequested
+        var overlay = _serviceProvider.GetRequiredService<OverlayWindow>();
+        overlay.OpenSettingsRequested += (_, _) => OpenSettings();
     }
 
-    private IServiceProvider BuildServices()
+    private static void ApplyTheme(string theme)
     {
+        var uri = new Uri($"pack://application:,,,/Themes/{(theme == "dark" ? "Dark" : "Light")}Theme.xaml");
+        var dict = new ResourceDictionary { Source = uri };
+        var merged = Current.Resources.MergedDictionaries;
+        if (merged.Count > 0) merged[0] = dict;
+        else merged.Insert(0, dict);
+    }
+
+    private static ServiceProvider ConfigureServices()
+    {
+        var settings = AppSettings.Load();
         var services = new ServiceCollection();
 
-        var settings = AppSettings.Load();
+        // Settings
         services.AddSingleton<IAppSettings>(settings);
 
         // Logging
@@ -99,7 +131,6 @@ public partial class App : WpfApplication
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
             "LinguaLens", "lingualens.db");
         Directory.CreateDirectory(Path.GetDirectoryName(dbPath)!);
-
         services.AddSingleton<LinguaLensDbContext>(_ =>
         {
             var opts = new DbContextOptionsBuilder<LinguaLensDbContext>()
@@ -111,6 +142,7 @@ public partial class App : WpfApplication
         // Repositories & cache
         services.AddSingleton<ITranslationCache, SqliteTranslationCache>();
         services.AddSingleton<IVocabRepository, SqliteVocabRepository>();
+        services.AddSingleton<ITokenUsageRepository, SqliteTokenUsageRepository>();
 
         // Language detection
         services.AddSingleton<ILanguageDetector, SimpleLanguageDetector>();
@@ -120,18 +152,17 @@ public partial class App : WpfApplication
         services.AddSingleton<ClipboardTextExtractor>();
         services.AddSingleton<ITextExtractor, CompositeTextExtractor>();
 
-        // LLM client — selected by provider setting
-        if (settings.LlmProvider == "gemini")
-        {
-            services.AddSingleton<ILlmClient>(_ => new GeminiLlmClient(new HttpClient(), settings.ApiKey));
-        }
-        else
-        {
-            var groqHttp = new HttpClient();
-            groqHttp.DefaultRequestHeaders.Authorization =
-                new AuthenticationHeaderValue("Bearer", settings.ApiKey);
-            services.AddSingleton<ILlmClient>(new GroqLlmClient(groqHttp));
-        }
+        // LLM clients via IHttpClientFactory with ApiKeyHandler for Groq
+        services.AddTransient<ApiKeyHandler>();
+        services.AddHttpClient<GroqLlmClient>()
+            .AddHttpMessageHandler<ApiKeyHandler>();
+        services.AddHttpClient<GeminiLlmClient>();
+
+        // LlmClientFactory selects provider at call time
+        services.AddSingleton<ILlmClientFactory>(sp => new LlmClientFactory(
+            sp.GetRequiredService<IAppSettings>(),
+            sp.GetRequiredService<GroqLlmClient>(),
+            sp.GetRequiredService<GeminiLlmClient>()));
 
         // Export
         services.AddSingleton<CsvVocabExporter>();
@@ -144,9 +175,13 @@ public partial class App : WpfApplication
         services.AddSingleton<GlobalMouseHook>();
 
         // App / UI
-        services.AddSingleton<OverlayWindow>();
+        services.AddSingleton<OverlayWindow>(sp => new OverlayWindow(
+            sp.GetRequiredService<IVocabRepository>(),
+            sp.GetRequiredService<IAppSettings>()));
         services.AddSingleton<DebounceController>();
-        services.AddSingleton<TrayIconManager>();
+        services.AddSingleton<TrayIconManager>(sp => new TrayIconManager(
+            sp.GetRequiredService<IAppSettings>(),
+            sp.GetRequiredService<ITokenUsageRepository>()));
         services.AddTransient<VocabViewModel>();
 
         return services.BuildServiceProvider();
