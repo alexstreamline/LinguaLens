@@ -11,7 +11,9 @@ public record TranslationResult(
     string Transcription,
     string Translation,
     string Comment,
-    IReadOnlyList<ExamplePair> Examples);
+    IReadOnlyList<ExamplePair> Examples,
+    string Definition = "",
+    IReadOnlyList<string>? Synonyms = null);
 
 public record ExamplePair(string Original, string Translation);
 

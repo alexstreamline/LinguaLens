@@ -39,7 +39,9 @@ public class UiaTextExtractor : ITextExtractor
                 {
                     var sentenceRange = range.Clone();
                     sentenceRange.ExpandToEnclosingUnit(TextUnit.Paragraph);
-                    var paragraph = sentenceRange.GetText(600).Trim();
+                    // 1500 символов — целый абзац / несколько коротких. Чем больше контекст,
+                    // тем точнее LLM разрешает омонимию (bank: финансовый vs. речной vs. memory).
+                    var paragraph = sentenceRange.GetText(1500).Trim();
                     sentence = paragraph.Length > 0 ? paragraph : word;
                 }
                 catch

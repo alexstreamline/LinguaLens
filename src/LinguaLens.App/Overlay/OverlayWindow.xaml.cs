@@ -16,7 +16,7 @@ public partial class OverlayWindow : Window
     private WordCardViewModel? _currentVm;
     private WpfPoint _lastPhysicalCursor;
 
-    public event EventHandler? TranslateSentenceRequested;
+    public event EventHandler<string>? TranslateSentenceRequested;
     public event EventHandler? RetryRequested;
     public event EventHandler? OpenSettingsRequested;
 
@@ -47,6 +47,21 @@ public partial class OverlayWindow : Window
         UpdateLayout();
 
         RepositionWindow();
+    }
+
+    /// <summary>Reposition только если окно вылезло за пределы рабочей области экрана.</summary>
+    private void RepositionIfOffscreen()
+    {
+        var source = PresentationSource.FromVisual(this);
+        var scaleX = source?.CompositionTarget?.TransformFromDevice.M11 ?? 1.0;
+        var scaleY = source?.CompositionTarget?.TransformFromDevice.M22 ?? 1.0;
+        var physPoint = new System.Drawing.Point((int)_lastPhysicalCursor.X, (int)_lastPhysicalCursor.Y);
+        var screen = System.Windows.Forms.Screen.FromPoint(physPoint);
+        var wb = screen.WorkingArea;
+        double wRight  = wb.Right  * scaleX;
+        double wBottom = wb.Bottom * scaleY;
+        if (Left + ActualWidth > wRight || Top + ActualHeight > wBottom)
+            RepositionWindow();
     }
 
     private void RepositionWindow()
@@ -80,13 +95,21 @@ public partial class OverlayWindow : Window
         Top  = Math.Max(wTop, top);
     }
 
-    public void ShowLoading()
+    public void ShowLoading(string? statusOverride = null)
     {
-        // Подставляем статус-строку с текущей моделью провайдера.
-        var provider = _settings.LlmProvider ?? "groq";
-        var modelLabel = provider == "gemini" ? "Gemini · gemini-2.0-flash" : "Groq · llama-3.1-8b";
-        LoadingStatusText.Text = $"Перевожу… ({modelLabel})";
+        // Если передали явный статус — используем его, иначе дефолт «Перевожу… (model)».
+        if (statusOverride is not null)
+        {
+            LoadingStatusText.Text = statusOverride;
+        }
+        else
+        {
+            var provider = _settings.LlmProvider ?? "groq";
+            var modelLabel = provider == "gemini" ? "Gemini · gemini-2.0-flash" : "Groq · llama-3.1-8b";
+            LoadingStatusText.Text = $"Перевожу… ({modelLabel})";
+        }
 
+        Width = 320;
         RestoreNormalBorder();
         LoadingPanel.Visibility = Visibility.Visible;
         WordCard.Visibility = Visibility.Collapsed;
@@ -95,40 +118,44 @@ public partial class OverlayWindow : Window
         FadeIn();
     }
 
-    public void ShowResult(TranslationResult result)
+    public void ShowResult(TranslationResult result, string contextSentence = "")
     {
         if (_currentVm != null)
             _currentVm.TranslateSentenceRequested -= OnTranslateSentenceRequested;
 
-        _currentVm = new WordCardViewModel(result, _vocab, _settings);
+        _currentVm = new WordCardViewModel(result, _vocab, _settings, contextSentence);
         _currentVm.TranslateSentenceRequested += OnTranslateSentenceRequested;
 
         WordCard.DataContext = _currentVm;
+        Width = 420;
         RestoreNormalBorder();
         LoadingPanel.Visibility = Visibility.Collapsed;
         WordCard.Visibility = Visibility.Visible;
         SentenceCard.Visibility = Visibility.Collapsed;
         ErrorPanel.Visibility = Visibility.Collapsed;
         UpdateLayout();
-        RepositionWindow();
+        // Окно перемещаем только если вылезло за экран (новый Width шире чем было).
+        RepositionIfOffscreen();
         FadeIn();
     }
 
     public void ShowSentenceResult(SentenceTranslationResult result, string contextSentence = "", string sourceApp = "Sentence picker")
     {
         SentenceCard.DataContext = new SentenceCardViewModel(result, contextSentence, sourceApp, _vocab);
+        Width = 580;
         RestoreNormalBorder();
         LoadingPanel.Visibility = Visibility.Collapsed;
         WordCard.Visibility = Visibility.Collapsed;
         SentenceCard.Visibility = Visibility.Visible;
         ErrorPanel.Visibility = Visibility.Collapsed;
         UpdateLayout();
-        RepositionWindow();
+        RepositionIfOffscreen();
         FadeIn();
     }
 
     public void ShowError()
     {
+        Width = 320;
         // Перекрашиваем рамку всей карточки в BadBrush — соответствие дизайну StateError.
         RootBorder.SetResourceReference(System.Windows.Controls.Border.BorderBrushProperty, "BadBrush");
         LoadingPanel.Visibility = Visibility.Collapsed;
@@ -136,7 +163,7 @@ public partial class OverlayWindow : Window
         SentenceCard.Visibility = Visibility.Collapsed;
         ErrorPanel.Visibility = Visibility.Visible;
         UpdateLayout();
-        RepositionWindow();
+        RepositionIfOffscreen();
         FadeIn();
     }
 
@@ -179,8 +206,8 @@ public partial class OverlayWindow : Window
         }, null, 300, System.Threading.Timeout.Infinite);
     }
 
-    private void OnTranslateSentenceRequested(object? sender, EventArgs e)
-        => TranslateSentenceRequested?.Invoke(this, e);
+    private void OnTranslateSentenceRequested(object? sender, string contextSentence)
+        => TranslateSentenceRequested?.Invoke(this, contextSentence);
 
     protected override void OnKeyDown(System.Windows.Input.KeyEventArgs e)
     {

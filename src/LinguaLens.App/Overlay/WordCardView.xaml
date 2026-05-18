@@ -10,7 +10,7 @@
         </Style>
     </UserControl.Resources>
 
-    <StackPanel MinWidth="300" MaxWidth="420" Margin="0">
+    <StackPanel Margin="0">
 
         <!-- ── Hint row ── -->
         <TextBlock Text="{Binding HintLabel, Converter={StaticResource LetterSpacedConverter}}"
@@ -93,16 +93,52 @@
                   StrokeDashArray="2 3"
                   Margin="0,12,0,10"/>
 
-            <!-- ── Translation ── -->
-            <TextBlock Text="{Binding Translation}"
+            <!-- ── Definition (large, primary block) ── -->
+            <TextBlock Text="{Binding Definition}"
                        FontFamily="{StaticResource UiFontFamily}"
-                       FontSize="{StaticResource FontSize.Translation}"
-                       FontWeight="{StaticResource FontWeight.Display}"
+                       FontSize="15"
+                       FontWeight="Normal"
                        Foreground="{DynamicResource PrimaryTextBrush}"
                        TextWrapping="Wrap"
-                       LineHeight="24"/>
+                       LineHeight="22"
+                       Visibility="{Binding HasDefinition, Converter={StaticResource BoolToVisibilityConverter}}"/>
 
-            <!-- ── Comment ── -->
+            <!-- ── Translation (краткое слово/фраза с флажком) ── -->
+            <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                <TextBlock Text="→"
+                           FontFamily="{StaticResource UiFontFamily}"
+                           FontSize="{StaticResource FontSize.Translation}"
+                           Foreground="{DynamicResource AccentBrush}"
+                           VerticalAlignment="Center"
+                           Margin="0,0,8,0"/>
+                <TextBlock Text="{Binding Translation}"
+                           FontFamily="{StaticResource UiFontFamily}"
+                           FontSize="{StaticResource FontSize.Translation}"
+                           FontWeight="{StaticResource FontWeight.Display}"
+                           Foreground="{DynamicResource PrimaryTextBrush}"
+                           TextWrapping="Wrap"
+                           VerticalAlignment="Center"/>
+            </StackPanel>
+
+            <!-- ── Synonyms (исходный язык, из того же домена) ── -->
+            <StackPanel Orientation="Horizontal" Margin="0,8,0,0"
+                        Visibility="{Binding HasSynonyms, Converter={StaticResource BoolToVisibilityConverter}}">
+                <TextBlock Text="Синонимы:"
+                           FontFamily="{StaticResource UiFontFamily}"
+                           FontSize="{StaticResource FontSize.Comment}"
+                           Foreground="{DynamicResource TertiaryTextBrush}"
+                           VerticalAlignment="Center"
+                           Margin="0,0,6,0"/>
+                <TextBlock Text="{Binding SynonymsLine}"
+                           FontFamily="{StaticResource UiFontFamily}"
+                           FontSize="{StaticResource FontSize.Comment}"
+                           FontStyle="Italic"
+                           Foreground="{DynamicResource SecondaryTextBrush}"
+                           TextWrapping="Wrap"
+                           VerticalAlignment="Center"/>
+            </StackPanel>
+
+            <!-- ── Comment (доп. нюанс, если есть) ── -->
             <TextBlock Text="{Binding Comment}"
                        FontFamily="{StaticResource UiFontFamily}"
                        FontSize="{StaticResource FontSize.Comment}"

@@ -4,7 +4,7 @@
         xmlns:local="clr-namespace:LinguaLens.App.Overlay"
         WindowStyle="None" AllowsTransparency="True" Background="Transparent"
         Topmost="True" ShowInTaskbar="False" ShowActivated="False" Focusable="False"
-        SizeToContent="WidthAndHeight" Opacity="0" Visibility="Collapsed">
+        SizeToContent="Height" Width="320" Opacity="0" Visibility="Collapsed">
     <Border x:Name="RootBorder"
             CornerRadius="{StaticResource CardCornerRadius}"
             Padding="0"

@@ -97,7 +97,7 @@ public sealed class DebounceController : IDisposable
                 await WpfApp.Current.Dispatcher.InvokeAsync(() =>
                 {
                     if (sentenceResult is null) _overlay.HideOverlay();
-                    else _overlay.ShowSentenceResult(sentenceResult);
+                    else _overlay.ShowSentenceResult(sentenceResult, selectedText);
                 });
             }
             else
@@ -136,10 +136,11 @@ public sealed class DebounceController : IDisposable
         }
 
         _lastTranslatedWord = result.Word;
-        await WpfApp.Current.Dispatcher.InvokeAsync(() => _overlay.ShowResult(result));
+        var sentence = extracted.Sentence;
+        await WpfApp.Current.Dispatcher.InvokeAsync(() => _overlay.ShowResult(result, sentence));
     }
 
-    private async void OnTranslateSentenceRequested(object? sender, EventArgs e)
+    private async void OnTranslateSentenceRequested(object? sender, string contextSentence)
     {
         _cts?.Cancel();
         _cts = new CancellationTokenSource();
@@ -148,19 +149,23 @@ public sealed class DebounceController : IDisposable
 
         try
         {
+            // Окно уже видимо (мы внутри word-карточки), окно не перемещаем —
+            // только подменяем содержимое на loading с явным статусом.
             await WpfApp.Current.Dispatcher.InvokeAsync(() =>
             {
-                _overlay.ShowAtPoint(_lastPoint);
-                _overlay.ShowLoading();
+                _overlay.ShowLoading("Перевожу всё предложение…");
             });
 
-            var result = await _orchestrator.ProcessSelectionAsync(cts.Token);
+            // Если карточка слова передала контекст-предложение — используем его как preExtracted,
+            // иначе fallback на чтение выделения через UIA.
+            var preExtracted = string.IsNullOrWhiteSpace(contextSentence) ? null : contextSentence;
+            var result = await _orchestrator.ProcessSelectionAsync(cts.Token, preExtracted);
             if (cts.Token.IsCancellationRequested) return;
 
             await WpfApp.Current.Dispatcher.InvokeAsync(() =>
             {
                 if (result is null) _overlay.HideOverlay();
-                else _overlay.ShowSentenceResult(result);
+                else _overlay.ShowSentenceResult(result, contextSentence ?? "");
             });
 
             _ = CheckUsageWarningAsync();

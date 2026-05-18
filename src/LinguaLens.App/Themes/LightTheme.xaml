@@ -1,0 +1,49 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- ============== Surface / paper ==============
+         Тёплая бумажная палитра по design_handoff_lingualens_ui/styles.css -->
+    <SolidColorBrush x:Key="CardBackgroundBrush" Color="#FBF9F4"/>
+    <SolidColorBrush x:Key="PaperAltBrush"       Color="#F4F1EA"/>
+
+    <!-- ============== Text ============== -->
+    <SolidColorBrush x:Key="PrimaryTextBrush"   Color="#1F1D1B"/>
+    <SolidColorBrush x:Key="SecondaryTextBrush" Color="#4A4742"/>
+    <SolidColorBrush x:Key="TertiaryTextBrush"  Color="#8A857F"/>
+
+    <!-- ============== Borders / dividers ============== -->
+    <SolidColorBrush x:Key="CardBorderBrush" Color="#2A2826"/>
+    <SolidColorBrush x:Key="DividerBrush"    Color="#592A2826"/> <!-- rgba(40,38,36,.35) ARGB -->
+    <SolidColorBrush x:Key="LineSoftBrush"   Color="#592A2826"/>
+
+    <!-- ============== Accent (тёплый оранжевый) ============== -->
+    <SolidColorBrush x:Key="AccentBrush"     Color="#C9712A"/>
+    <SolidColorBrush x:Key="AccentSoftBrush" Color="#F2E4D2"/>
+
+    <!-- ============== POS pill ==============
+         Бежевый фон + тёмный текст (не синий!) -->
+    <SolidColorBrush x:Key="PosBadgeBackgroundBrush" Color="#F2E4D2"/>
+    <SolidColorBrush x:Key="PosBadgeForegroundBrush" Color="#1F1D1B"/>
+
+    <!-- ============== Hover / pick highlights (sentence picker) ============== -->
+    <SolidColorBrush x:Key="HoverHighlightBrush" Color="#F0DAB5"/>
+    <SolidColorBrush x:Key="PickHighlightBrush"  Color="#D88550"/>
+
+    <!-- ============== Status (success / error) ============== -->
+    <SolidColorBrush x:Key="OkBrush"  Color="#5FA678"/>
+    <SolidColorBrush x:Key="BadBrush" Color="#C45838"/>
+
+    <!-- ============== Buttons ============== -->
+    <SolidColorBrush x:Key="ButtonBorderBrush" Color="#2A2826"/>
+    <SolidColorBrush x:Key="ButtonHoverBrush"  Color="#F4F1EA"/>
+
+    <!-- ============== Card shadow ==============
+         Мягкая тень снизу. В Dark — то же ключ, но Opacity=0. -->
+    <DropShadowEffect x:Key="CardShadowEffect"
+                      Color="#000000"
+                      Opacity="0.12"
+                      BlurRadius="12"
+                      ShadowDepth="4"
+                      Direction="270"/>
+
+</ResourceDictionary>

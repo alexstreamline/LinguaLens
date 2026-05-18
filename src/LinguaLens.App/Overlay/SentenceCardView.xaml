@@ -1,0 +1,185 @@
+<UserControl x:Class="LinguaLens.App.Overlay.SentenceCardView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <UserControl.Resources>
+        <!-- Стиль фрагмента-пары (Border вокруг текста).
+             Без триггеров — fallback. Триггеры состояния заданы локально на Border'ах. -->
+        <Style x:Key="PairBorderStyle" TargetType="Border">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="CornerRadius" Value="3"/>
+            <Setter Property="Padding" Value="2,0"/>
+            <Setter Property="Margin" Value="-1,1"/>
+            <Setter Property="Cursor" Value="Arrow"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsInPickingMode}" Value="True">
+                    <Setter Property="Cursor" Value="Hand"/>
+                </DataTrigger>
+                <!-- Hover — слабее selection, объявлен раньше => проиграет -->
+                <DataTrigger Binding="{Binding IsHovered}" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource HoverHighlightBrush}"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource PickHighlightBrush}"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="OriginalTextStyle" TargetType="TextBlock">
+            <Setter Property="FontStyle" Value="Italic"/>
+            <Setter Property="FontSize"   Value="{StaticResource FontSize.Body}"/>
+            <Setter Property="FontFamily" Value="{StaticResource UiFontFamily}"/>
+            <Setter Property="Foreground" Value="{DynamicResource SecondaryTextBrush}"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                    <Setter Property="Foreground" Value="#FFFFFF"/>
+                    <Setter Property="FontWeight" Value="SemiBold"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="TranslationTextStyle" TargetType="TextBlock">
+            <Setter Property="FontSize"   Value="{StaticResource FontSize.SentenceBody}"/>
+            <Setter Property="FontWeight" Value="Medium"/>
+            <Setter Property="FontFamily" Value="{StaticResource UiFontFamily}"/>
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryTextBrush}"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                    <Setter Property="Foreground" Value="#FFFFFF"/>
+                    <Setter Property="FontWeight" Value="SemiBold"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="SectionLabelStyle" TargetType="TextBlock">
+            <Setter Property="FontSize"   Value="{StaticResource FontSize.Label}"/>
+            <Setter Property="FontWeight" Value="{StaticResource FontWeight.Label}"/>
+            <Setter Property="FontFamily" Value="{StaticResource UiFontFamily}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TertiaryTextBrush}"/>
+        </Style>
+    </UserControl.Resources>
+
+    <StackPanel Margin="0">
+
+        <!-- ============== Hint row (over the card) ============== -->
+        <Grid Margin="14,10,14,8">
+            <TextBlock Text="{Binding ModeLabel, Converter={StaticResource LetterSpacedConverter}}"
+                       FontFamily="{StaticResource UiFontFamily}"
+                       FontSize="{StaticResource FontSize.Label}"
+                       FontWeight="{StaticResource FontWeight.Label}"
+                       Foreground="{DynamicResource TertiaryTextBrush}"
+                       HorizontalAlignment="Left"/>
+            <TextBlock Text="{Binding HintText}"
+                       FontFamily="{StaticResource UiFontFamily}"
+                       FontSize="11"
+                       FontStyle="Italic"
+                       HorizontalAlignment="Right">
+                <TextBlock.Style>
+                    <Style TargetType="TextBlock">
+                        <Setter Property="Foreground" Value="{DynamicResource TertiaryTextBrush}"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding HintIsSaved}" Value="True">
+                                <Setter Property="Foreground" Value="{DynamicResource OkBrush}"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </TextBlock.Style>
+            </TextBlock>
+        </Grid>
+
+        <!-- ============== Card body ==============
+             Border-обёртка карточки (paper, тень) появится в шаге 3.
+             Сейчас тут только контент. -->
+        <StackPanel Margin="14,0,14,12">
+
+            <!-- ── Оригинал ── -->
+            <TextBlock Text="{Binding Source=ОРИГИНАЛ, Converter={StaticResource LetterSpacedConverter}}"
+                       Style="{StaticResource SectionLabelStyle}" Margin="0,0,0,6"/>
+
+            <!-- Оригинал = исходный contextSentence от extractor'а (UIA/OCR), напрямую как есть.
+                 Pairs от LLM не используем — они могут искажать исходник (терять слова, придумывать). -->
+            <TextBlock Text="{Binding ContextSentence}"
+                       Visibility="{Binding HasContextSentence, Converter={StaticResource BoolToVisibilityConverter}}"
+                       FontFamily="{StaticResource UiFontFamily}"
+                       FontSize="13"
+                       FontStyle="Italic"
+                       Foreground="{DynamicResource SecondaryTextBrush}"
+                       TextWrapping="Wrap"
+                       LineHeight="19"/>
+
+            <!-- ── Dashed divider ── -->
+            <Line X1="0" X2="1" Stretch="Fill"
+                  Stroke="{DynamicResource LineSoftBrush}"
+                  StrokeThickness="1.2"
+                  StrokeDashArray="2 3"
+                  Margin="0,12,0,10"/>
+
+            <!-- ── Перевод ── -->
+            <TextBlock Text="{Binding Source=ПЕРЕВОД, Converter={StaticResource LetterSpacedConverter}}"
+                       Style="{StaticResource SectionLabelStyle}" Margin="0,0,0,6"/>
+
+            <!-- ПЕРЕВОД: сплошной текст из Translation (с пунктуацией), не из Pairs.
+                 Pairs не сохраняют знаки препинания → перевод из них теряет запятые/точки.
+                 Translation от LLM приходит как готовое предложение с пунктуацией. -->
+            <TextBlock x:Name="TranslationTextBlock"
+                       Text="{Binding Translation}"
+                       FontFamily="{StaticResource UiFontFamily}"
+                       FontSize="15"
+                       FontWeight="Normal"
+                       Foreground="{DynamicResource PrimaryTextBrush}"
+                       TextWrapping="Wrap"
+                       LineHeight="20"/>
+
+            <!-- ── Comment quote ── -->
+            <Border BorderBrush="{DynamicResource LineSoftBrush}"
+                    BorderThickness="2,0,0,0"
+                    Padding="10,0,0,0"
+                    Margin="0,10,0,0"
+                    Visibility="{Binding HasComment, Converter={StaticResource BoolToVisibilityConverter}}">
+                <TextBlock Text="{Binding Comment}"
+                           FontFamily="{StaticResource UiFontFamily}"
+                           FontSize="{StaticResource FontSize.Comment}"
+                           FontStyle="Italic"
+                           Foreground="{DynamicResource SecondaryTextBrush}"
+                           TextWrapping="Wrap"
+                           LineHeight="18"/>
+            </Border>
+
+            <!-- ── Footer ── -->
+            <Grid Margin="0,12,0,0">
+                <!-- Normal: кнопка "+ Слова в словарь" -->
+                <Button Content="＋ Слова в словарь"
+                        Style="{StaticResource SmallOutlineButton}"
+                        Command="{Binding StartPickingCommand}"
+                        HorizontalAlignment="Right"
+                        Visibility="{Binding IsNormal, Converter={StaticResource BoolToVisibilityConverter}}"/>
+
+                <!-- Picking: счётчик + [Отмена] [Сохранить N] -->
+                <Grid Visibility="{Binding IsPicking, Converter={StaticResource BoolToVisibilityConverter}}">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" VerticalAlignment="Center"
+                               FontFamily="{StaticResource UiFontFamily}"
+                               FontSize="11"
+                               Foreground="{DynamicResource TertiaryTextBrush}">
+                        <Run Text="выбрано: "/>
+                        <Run Text="{Binding SelectedCount, Mode=OneWay}"
+                             FontWeight="Bold"
+                             Foreground="{DynamicResource PrimaryTextBrush}"/>
+                    </TextBlock>
+                    <StackPanel Grid.Column="1" Orientation="Horizontal">
+                        <Button Content="Отмена"
+                                Style="{StaticResource SmallOutlineButton}"
+                                Command="{Binding CancelPickingCommand}"
+                                Margin="0,0,6,0"/>
+                        <Button Content="{Binding SaveButtonText}"
+                                Style="{StaticResource SmallOutlineButton}"
+                                Command="{Binding SaveSelectedCommand}"/>
+                    </StackPanel>
+                </Grid>
+            </Grid>
+
+        </StackPanel>
+    </StackPanel>
+</UserControl>

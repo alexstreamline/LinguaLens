@@ -95,6 +95,19 @@ public class GeminiLlmClient : ILlmClient
                     e.GetProperty("translation").GetString() ?? ""))
                 .ToList();
 
+            var synonyms = new List<string>();
+            if (root.TryGetProperty("synonyms", out var synEl) && synEl.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var s in synEl.EnumerateArray())
+                {
+                    var str = s.GetString();
+                    if (!string.IsNullOrWhiteSpace(str)) synonyms.Add(str);
+                }
+            }
+
+            var definition = root.TryGetProperty("definition", out var defEl)
+                ? defEl.GetString() ?? "" : "";
+
             return new TranslationResult(
                 Word:          root.GetProperty("word").GetString() ?? "",
                 DetectedLang:  root.GetProperty("detected_lang").GetString() ?? "",
@@ -102,7 +115,9 @@ public class GeminiLlmClient : ILlmClient
                 Transcription: root.GetProperty("transcription").GetString() ?? "",
                 Translation:   root.GetProperty("translation").GetString() ?? "",
                 Comment:       root.GetProperty("comment").GetString() ?? "",
-                Examples:      examples);
+                Examples:      examples,
+                Definition:    definition,
+                Synonyms:      synonyms);
         }
         catch (Exception ex) when (ex is not TranslationParseException)
         {
