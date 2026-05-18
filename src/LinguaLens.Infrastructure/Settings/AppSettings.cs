@@ -18,7 +18,7 @@ public class AppSettings : IAppSettings, INotifyPropertyChanged
     private string _apiKey = "";
     private int _debounceMs = 400;
     private string _hotKey = "Alt+Shift+L";
-    private string _translateHotKey = "Ctrl+Shift+Space";
+    private string _translateHotKey = "Ctrl+~";
     private bool _detectEnglish = true;
     private bool _detectSpanish = true;
     private bool _autoSaveToVocab = true;

@@ -6,6 +6,7 @@ public class LinguaLensDbContext : DbContext
 {
     public DbSet<CacheEntry> TranslationCache => Set<CacheEntry>();
     public DbSet<VocabEntryEntity> VocabEntries => Set<VocabEntryEntity>();
+    public DbSet<TokenUsageEntity> TokenUsage => Set<TokenUsageEntity>();
 
     public LinguaLensDbContext(DbContextOptions<LinguaLensDbContext> options) : base(options) { }
 
@@ -21,6 +22,12 @@ public class LinguaLensDbContext : DbContext
         modelBuilder.Entity<VocabEntryEntity>(e =>
         {
             e.ToTable("vocab_entries");
+            e.HasKey(x => x.Id);
+        });
+
+        modelBuilder.Entity<TokenUsageEntity>(e =>
+        {
+            e.ToTable("token_usage");
             e.HasKey(x => x.Id);
         });
     }
@@ -48,4 +55,15 @@ public class VocabEntryEntity
     public string ResponseJson { get; set; } = "";
     public DateTime CreatedAt { get; set; }
     public bool IsLearned { get; set; }
+}
+
+public class TokenUsageEntity
+{
+    public int Id { get; set; }
+    public DateTime Timestamp { get; set; }
+    public int PromptTokens { get; set; }
+    public int CompletionTokens { get; set; }
+    public string Provider { get; set; } = "";
+    public string Model { get; set; } = "";
+    public string Mode { get; set; } = "";
 }

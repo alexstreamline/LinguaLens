@@ -15,16 +15,21 @@ public class TranslationOrchestratorTests
     private readonly Mock<ILanguageDetector> _detector = new();
     private readonly Mock<ITranslationCache> _cache = new();
     private readonly Mock<ILlmClient> _llmClient = new();
+    private readonly Mock<ILlmClientFactory> _factory = new();
     private readonly Mock<IVocabRepository> _vocab = new();
     private readonly Mock<IAppSettings> _settings = new();
 
-    private TranslationOrchestrator CreateOrchestrator() => new(
-        _extractor.Object,
-        _detector.Object,
-        _cache.Object,
-        _llmClient.Object,
-        _vocab.Object,
-        _settings.Object);
+    private TranslationOrchestrator CreateOrchestrator()
+    {
+        _factory.Setup(f => f.Create()).Returns(_llmClient.Object);
+        return new(
+            _extractor.Object,
+            _detector.Object,
+            _cache.Object,
+            _factory.Object,
+            _vocab.Object,
+            _settings.Object);
+    }
 
     private static TranslationResult FakeResult(string word = "test") => new(
         word, "en", "noun", "[tɛst]", "тест", "", []);

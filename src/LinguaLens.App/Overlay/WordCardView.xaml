@@ -1,49 +1,184 @@
 <UserControl x:Class="LinguaLens.App.Overlay.WordCardView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
-    <StackPanel MinWidth="220" MaxWidth="400">
+    <UserControl.Resources>
+        <Style x:Key="SectionLabelStyle" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="{StaticResource UiFontFamily}"/>
+            <Setter Property="FontSize"   Value="{StaticResource FontSize.Label}"/>
+            <Setter Property="FontWeight" Value="{StaticResource FontWeight.Label}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TertiaryTextBrush}"/>
+        </Style>
+    </UserControl.Resources>
 
-        <!-- Header: word + pos badge -->
-        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-            <TextBlock x:Name="WordText" FontSize="18" FontWeight="Bold" />
-            <Border x:Name="PosBadge" Margin="8,0,0,0" Padding="5,2" CornerRadius="4"
-                    Background="#EEF2FF" VerticalAlignment="Center">
-                <TextBlock x:Name="PosText" FontSize="11" Foreground="#4F46E5" />
-            </Border>
-        </StackPanel>
+    <StackPanel MinWidth="300" MaxWidth="420" Margin="0">
 
-        <!-- Transcription -->
-        <TextBlock x:Name="TranscriptionText" Foreground="#6B7280" FontSize="12" Margin="0,2,0,0" />
+        <!-- ── Hint row ── -->
+        <TextBlock Text="{Binding HintLabel, Converter={StaticResource LetterSpacedConverter}}"
+                   Style="{StaticResource SectionLabelStyle}"
+                   Margin="14,10,14,8"/>
 
-        <!-- Translation -->
-        <TextBlock x:Name="TranslationText" FontSize="15" FontWeight="SemiBold" Margin="0,6,0,0"
-                   TextWrapping="Wrap" />
+        <!-- ── Card body ── -->
+        <StackPanel Margin="14,0,14,12">
 
-        <!-- Comment -->
-        <TextBlock x:Name="CommentText" FontStyle="Italic" Foreground="#6B7280"
-                   TextWrapping="Wrap" FontSize="12" Margin="0,4,0,0"
-                   Visibility="Collapsed" />
+            <!-- ── Header: word + POS pill + transcription + flag ── -->
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
 
-        <!-- Examples -->
-        <ItemsControl x:Name="ExamplesList" Margin="0,6,0,0">
-            <ItemsControl.ItemTemplate>
-                <DataTemplate>
-                    <StackPanel Margin="0,3,0,0">
-                        <TextBlock Text="{Binding Original}" FontStyle="Italic"
-                                   TextWrapping="Wrap" FontSize="12" />
-                        <TextBlock Text="{Binding Translation}" Foreground="#6B7280"
-                                   TextWrapping="Wrap" FontSize="12" />
-                    </StackPanel>
-                </DataTemplate>
-            </ItemsControl.ItemTemplate>
-        </ItemsControl>
+                <!-- Left: word + pos + transcription, all aligned to baseline -->
+                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding Word}"
+                               FontFamily="{StaticResource UiFontFamily}"
+                               FontSize="{StaticResource FontSize.Word}"
+                               FontWeight="{StaticResource FontWeight.Display}"
+                               Foreground="{DynamicResource PrimaryTextBrush}"
+                               VerticalAlignment="Center"/>
 
-        <!-- Footer buttons -->
-        <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
-            <Button x:Name="CopyButton" Content="Копировать" Padding="8,3" Margin="0,0,6,0"
-                    FontSize="12" Cursor="Hand" />
-            <Button x:Name="TranslateSentenceButton" Content="Предложение →" Padding="8,3"
-                    FontSize="12" Cursor="Hand" />
+                    <!-- POS capsule pill: UPPERCASE, бежевый фон, тёмный текст, тонкая рамка -->
+                    <Border Margin="8,2,0,0"
+                            Padding="{StaticResource PillPadding}"
+                            CornerRadius="{StaticResource PillCornerRadius}"
+                            Background="{DynamicResource PosBadgeBackgroundBrush}"
+                            BorderBrush="{DynamicResource PrimaryTextBrush}"
+                            BorderThickness="{StaticResource PillBorderThickness}"
+                            VerticalAlignment="Center"
+                            Visibility="{Binding HasPos, Converter={StaticResource BoolToVisibilityConverter}}">
+                        <TextBlock Text="{Binding PosUpper, Converter={StaticResource LetterSpacedConverter}}"
+                                   FontFamily="{StaticResource UiFontFamily}"
+                                   FontSize="{StaticResource FontSize.Label}"
+                                   FontWeight="{StaticResource FontWeight.Label}"
+                                   Foreground="{DynamicResource PosBadgeForegroundBrush}"/>
+                    </Border>
+
+                    <TextBlock Text="{Binding Transcription}"
+                               FontFamily="{StaticResource MonoFontFamily}"
+                               FontSize="{StaticResource FontSize.Mono}"
+                               Foreground="{DynamicResource SecondaryTextBrush}"
+                               VerticalAlignment="Center"
+                               Margin="8,2,0,0"
+                               Visibility="{Binding HasTranscription, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                </StackPanel>
+
+                <!-- Right: generic flag SVG (3-stripe) + lang code -->
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Border BorderBrush="{DynamicResource SecondaryTextBrush}"
+                            BorderThickness="1"
+                            CornerRadius="2"
+                            Width="14" Height="10"
+                            Background="Transparent"
+                            VerticalAlignment="Center">
+                        <Grid>
+                            <Line X1="0" Y1="3" X2="14" Y2="3"
+                                  Stroke="{DynamicResource SecondaryTextBrush}" StrokeThickness="0.8"/>
+                            <Line X1="0" Y1="6" X2="14" Y2="6"
+                                  Stroke="{DynamicResource SecondaryTextBrush}" StrokeThickness="0.8"/>
+                        </Grid>
+                    </Border>
+                    <TextBlock Text="{Binding LangCode}"
+                               FontFamily="{StaticResource UiFontFamily}"
+                               FontSize="11"
+                               FontWeight="SemiBold"
+                               Foreground="{DynamicResource SecondaryTextBrush}"
+                               VerticalAlignment="Center"
+                               Margin="4,0,0,0"/>
+                </StackPanel>
+            </Grid>
+
+            <!-- ── Dashed divider ── -->
+            <Line X1="0" X2="1" Stretch="Fill"
+                  Stroke="{DynamicResource LineSoftBrush}"
+                  StrokeThickness="1.2"
+                  StrokeDashArray="2 3"
+                  Margin="0,12,0,10"/>
+
+            <!-- ── Translation ── -->
+            <TextBlock Text="{Binding Translation}"
+                       FontFamily="{StaticResource UiFontFamily}"
+                       FontSize="{StaticResource FontSize.Translation}"
+                       FontWeight="{StaticResource FontWeight.Display}"
+                       Foreground="{DynamicResource PrimaryTextBrush}"
+                       TextWrapping="Wrap"
+                       LineHeight="24"/>
+
+            <!-- ── Comment ── -->
+            <TextBlock Text="{Binding Comment}"
+                       FontFamily="{StaticResource UiFontFamily}"
+                       FontSize="{StaticResource FontSize.Comment}"
+                       FontStyle="Italic"
+                       Foreground="{DynamicResource SecondaryTextBrush}"
+                       TextWrapping="Wrap"
+                       LineHeight="18"
+                       Margin="0,8,0,0"
+                       Visibility="{Binding HasComment, Converter={StaticResource BoolToVisibilityConverter}}"/>
+
+            <!-- ── Examples (collapsed by default) ── -->
+            <Expander Margin="0,12,0,0"
+                      Visibility="{Binding HasExamples, Converter={StaticResource BoolToVisibilityConverter}}"
+                      Foreground="{DynamicResource TertiaryTextBrush}">
+                <Expander.Header>
+                    <TextBlock Text="{Binding ExamplesHeader}"
+                               FontFamily="{StaticResource UiFontFamily}"
+                               FontSize="{StaticResource FontSize.Label}"
+                               FontWeight="{StaticResource FontWeight.Label}"
+                               Foreground="{DynamicResource TertiaryTextBrush}"/>
+                </Expander.Header>
+                <ItemsControl ItemsSource="{Binding Examples}" Margin="0,8,0,0">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <StackPanel Margin="0,0,0,8">
+                                <TextBlock Text="{Binding Original}"
+                                           FontFamily="{StaticResource UiFontFamily}"
+                                           FontSize="{StaticResource FontSize.Caption}"
+                                           FontWeight="Medium"
+                                           Foreground="{DynamicResource PrimaryTextBrush}"
+                                           TextWrapping="Wrap"/>
+                                <TextBlock Text="{Binding Translation}"
+                                           FontFamily="{StaticResource UiFontFamily}"
+                                           FontSize="{StaticResource FontSize.Caption}"
+                                           Foreground="{DynamicResource SecondaryTextBrush}"
+                                           TextWrapping="Wrap"/>
+                            </StackPanel>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </Expander>
+
+            <!-- ── Dashed divider before footer ── -->
+            <Line X1="0" X2="1" Stretch="Fill"
+                  Stroke="{DynamicResource LineSoftBrush}"
+                  StrokeThickness="1.2"
+                  StrokeDashArray="2 3"
+                  Margin="0,12,0,10"/>
+
+            <!-- ── Footer: [＋ Сохранить]  [Перевести предложение] ── -->
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <Button Grid.Column="0"
+                        Content="{Binding SaveButtonLabel}"
+                        Command="{Binding SaveToVocabCommand}"
+                        Margin="0,0,6,0">
+                    <Button.Style>
+                        <Style TargetType="Button" BasedOn="{StaticResource SmallOutlineButton}">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsSaved}" Value="True">
+                                    <Setter Property="Foreground" Value="{DynamicResource OkBrush}"/>
+                                    <Setter Property="BorderBrush" Value="{DynamicResource OkBrush}"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Button.Style>
+                </Button>
+                <Button Grid.Column="1"
+                        Content="Перевести предложение"
+                        Style="{StaticResource SmallOutlineButton}"
+                        Command="{Binding TranslateSentenceCommand}"
+                        HorizontalAlignment="Stretch"/>
+            </Grid>
         </StackPanel>
     </StackPanel>
 </UserControl>

@@ -23,7 +23,6 @@ namespace LinguaLens.App;
 public partial class App : WpfApplication
 {
     private ServiceProvider? _serviceProvider;
-    private GlobalMouseHook? _mouseHook;
     private TrayIconManager? _trayIconManager;
     private DebounceController? _debounceController;
 
@@ -53,10 +52,6 @@ public partial class App : WpfApplication
                     ApplyTheme(settings.Theme);
             };
         }
-
-        // Start mouse hook on dedicated STA thread
-        _mouseHook = _serviceProvider.GetRequiredService<GlobalMouseHook>();
-        _mouseHook.Start();
 
         // Wire up debounce controller
         _debounceController = _serviceProvider.GetRequiredService<DebounceController>();
@@ -102,11 +97,12 @@ public partial class App : WpfApplication
 
     private static void ApplyTheme(string theme)
     {
+        // [0] = Tokens.xaml (статические токены), [1] = цветовая тема.
         var uri = new Uri($"pack://application:,,,/Themes/{(theme == "dark" ? "Dark" : "Light")}Theme.xaml");
         var dict = new ResourceDictionary { Source = uri };
         var merged = Current.Resources.MergedDictionaries;
-        if (merged.Count > 0) merged[0] = dict;
-        else merged.Insert(0, dict);
+        if (merged.Count >= 2) merged[1] = dict;
+        else merged.Add(dict);
     }
 
     private static ServiceProvider ConfigureServices()
@@ -152,6 +148,9 @@ public partial class App : WpfApplication
         services.AddSingleton<ClipboardTextExtractor>();
         services.AddSingleton<ITextExtractor, CompositeTextExtractor>();
 
+        // OCR fallback (для приложений без UIA TextPattern: PDF-читалки и т.п.)
+        services.AddSingleton<IOcrService, WindowsOcrService>();
+
         // LLM clients via IHttpClientFactory with ApiKeyHandler for Groq
         services.AddTransient<ApiKeyHandler>();
         services.AddHttpClient<GroqLlmClient>()
@@ -190,7 +189,6 @@ public partial class App : WpfApplication
     protected override void OnExit(ExitEventArgs e)
     {
         _debounceController?.Dispose();
-        _mouseHook?.Dispose();
         _trayIconManager?.Dispose();
         _serviceProvider?.Dispose();
         base.OnExit(e);

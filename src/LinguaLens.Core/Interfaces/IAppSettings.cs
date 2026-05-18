@@ -6,7 +6,7 @@ public interface IAppSettings
     string ApiKey { get; set; }
     int DebounceMs { get; set; }         // default: 400
     string HotKey { get; set; }          // default: "Alt+Shift+L"  (toggle on/off)
-    string TranslateHotKey { get; set; } // default: "Ctrl+Shift+Space" (translate on demand)
+    string TranslateHotKey { get; set; } // default: "Ctrl+~" (translate on demand)
     bool DetectEnglish { get; set; }     // default: true
     bool DetectSpanish { get; set; }     // default: true
     bool AutoSaveToVocab { get; set; }   // default: true

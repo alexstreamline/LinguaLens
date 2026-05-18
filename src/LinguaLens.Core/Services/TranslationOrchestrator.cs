@@ -15,6 +15,7 @@ public class TranslationOrchestrator
     private readonly IVocabRepository _vocab;
     private readonly IAppSettings _settings;
     private readonly ILogger<TranslationOrchestrator> _logger;
+    private readonly IOcrService? _ocr;
 
     public TranslationOrchestrator(
         ITextExtractor extractor,
@@ -23,7 +24,8 @@ public class TranslationOrchestrator
         ILlmClientFactory factory,
         IVocabRepository vocab,
         IAppSettings settings,
-        ILogger<TranslationOrchestrator>? logger = null)
+        ILogger<TranslationOrchestrator>? logger = null,
+        IOcrService? ocr = null)
     {
         _extractor = extractor;
         _detector = detector;
@@ -32,6 +34,39 @@ public class TranslationOrchestrator
         _vocab = vocab;
         _settings = settings;
         _logger = logger ?? NullLogger<TranslationOrchestrator>.Instance;
+        _ocr = ocr;
+    }
+
+    /// <summary>UIA сначала; если приложение не отдаёт текст (PDF-читалки и пр.) — fallback на OCR.</summary>
+    private async Task<WordExtractionResult?> ExtractWithFallbackAsync(Point screenPoint)
+    {
+        var uia = await _extractor.ExtractWordAtPointAsync(screenPoint);
+        if (uia is not null && !string.IsNullOrWhiteSpace(uia.Word))
+            return uia;
+
+        if (_ocr is null) return null;
+
+        try
+        {
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
+            var ocrResult = await _ocr.ExtractTextNearAsync(screenPoint, cts.Token);
+            if (ocrResult is null || string.IsNullOrWhiteSpace(ocrResult.WordAtPoint))
+                return null;
+
+            _logger.LogInformation("OCR fallback hit: '{Word}' (context: '{Context}')",
+                ocrResult.WordAtPoint, ocrResult.ContextSentence);
+
+            return new WordExtractionResult(
+                Word: ocrResult.WordAtPoint!,
+                Sentence: ocrResult.ContextSentence,
+                SourceApp: "OCR",
+                ScreenPoint: screenPoint);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "OCR fallback failed at {Point}", screenPoint);
+            return null;
+        }
     }
 
     /// <summary>
@@ -43,7 +78,7 @@ public class TranslationOrchestrator
     {
         try
         {
-            var extraction = await _extractor.ExtractWordAtPointAsync(screenPoint);
+            var extraction = await ExtractWithFallbackAsync(screenPoint);
             if (extraction is null || string.IsNullOrWhiteSpace(extraction.Word)) return null;
             var lang = _detector.Detect(extraction.Word);
             if (lang is null) return null;
@@ -65,7 +100,7 @@ public class TranslationOrchestrator
     {
         try
         {
-            var extraction = extracted ?? await _extractor.ExtractWordAtPointAsync(screenPoint);
+            var extraction = extracted ?? await ExtractWithFallbackAsync(screenPoint);
             if (extraction is null || string.IsNullOrWhiteSpace(extraction.Word))
                 return null;
 

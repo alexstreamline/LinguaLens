@@ -82,6 +82,12 @@ public partial class OverlayWindow : Window
 
     public void ShowLoading()
     {
+        // Подставляем статус-строку с текущей моделью провайдера.
+        var provider = _settings.LlmProvider ?? "groq";
+        var modelLabel = provider == "gemini" ? "Gemini · gemini-2.0-flash" : "Groq · llama-3.1-8b";
+        LoadingStatusText.Text = $"Перевожу… ({modelLabel})";
+
+        RestoreNormalBorder();
         LoadingPanel.Visibility = Visibility.Visible;
         WordCard.Visibility = Visibility.Collapsed;
         SentenceCard.Visibility = Visibility.Collapsed;
@@ -98,6 +104,7 @@ public partial class OverlayWindow : Window
         _currentVm.TranslateSentenceRequested += OnTranslateSentenceRequested;
 
         WordCard.DataContext = _currentVm;
+        RestoreNormalBorder();
         LoadingPanel.Visibility = Visibility.Collapsed;
         WordCard.Visibility = Visibility.Visible;
         SentenceCard.Visibility = Visibility.Collapsed;
@@ -107,9 +114,10 @@ public partial class OverlayWindow : Window
         FadeIn();
     }
 
-    public void ShowSentenceResult(SentenceTranslationResult result)
+    public void ShowSentenceResult(SentenceTranslationResult result, string contextSentence = "", string sourceApp = "Sentence picker")
     {
-        SentenceCard.DataContext = new SentenceCardViewModel(result);
+        SentenceCard.DataContext = new SentenceCardViewModel(result, contextSentence, sourceApp, _vocab);
+        RestoreNormalBorder();
         LoadingPanel.Visibility = Visibility.Collapsed;
         WordCard.Visibility = Visibility.Collapsed;
         SentenceCard.Visibility = Visibility.Visible;
@@ -121,6 +129,8 @@ public partial class OverlayWindow : Window
 
     public void ShowError()
     {
+        // Перекрашиваем рамку всей карточки в BadBrush — соответствие дизайну StateError.
+        RootBorder.SetResourceReference(System.Windows.Controls.Border.BorderBrushProperty, "BadBrush");
         LoadingPanel.Visibility = Visibility.Collapsed;
         WordCard.Visibility = Visibility.Collapsed;
         SentenceCard.Visibility = Visibility.Collapsed;
@@ -128,6 +138,11 @@ public partial class OverlayWindow : Window
         UpdateLayout();
         RepositionWindow();
         FadeIn();
+    }
+
+    private void RestoreNormalBorder()
+    {
+        RootBorder.SetResourceReference(System.Windows.Controls.Border.BorderBrushProperty, "CardBorderBrush");
     }
 
     public void HideOverlay()

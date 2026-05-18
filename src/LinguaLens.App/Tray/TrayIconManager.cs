@@ -158,16 +158,21 @@ public sealed class TrayIconManager : IDisposable
         uint vk = 0;
         foreach (var part in hotKey.Split('+'))
         {
-            switch (part.Trim().ToUpperInvariant())
+            var token = part.Trim();
+            switch (token.ToUpperInvariant())
             {
                 case "ALT":   modifiers |= 0x0001; break;
                 case "CTRL":
                 case "CONTROL": modifiers |= 0x0002; break;
                 case "SHIFT": modifiers |= 0x0004; break;
                 case "WIN":   modifiers |= 0x0008; break;
+                case "~":
+                case "`":
+                case "TILDE":
+                case "BACKTICK": vk = 0xC0; break; // VK_OEM_3
+                case "SPACE":    vk = 0x20; break; // VK_SPACE
                 default:
-                    var p = part.Trim();
-                    if (p.Length == 1) vk = (uint)char.ToUpperInvariant(p[0]);
+                    if (token.Length == 1) vk = (uint)char.ToUpperInvariant(token[0]);
                     break;
             }
         }

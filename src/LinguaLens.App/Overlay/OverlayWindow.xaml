@@ -5,12 +5,14 @@
         WindowStyle="None" AllowsTransparency="True" Background="Transparent"
         Topmost="True" ShowInTaskbar="False" ShowActivated="False" Focusable="False"
         SizeToContent="WidthAndHeight" Opacity="0" Visibility="Collapsed">
-    <Border CornerRadius="10" Padding="0"
+    <Border x:Name="RootBorder"
+            CornerRadius="{StaticResource CardCornerRadius}"
+            Padding="0"
+            Margin="8"
             Background="{DynamicResource CardBackgroundBrush}"
-            BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1">
-        <Border.Effect>
-            <DropShadowEffect BlurRadius="16" ShadowDepth="2" Opacity="0.15" Color="#000000"/>
-        </Border.Effect>
+            BorderBrush="{DynamicResource CardBorderBrush}"
+            BorderThickness="{StaticResource CardBorderThickness}"
+            Effect="{DynamicResource CardShadowEffect}">
         <Grid>
             <!-- Close button — always on top, top-right corner -->
             <Button x:Name="CloseButton" Content="✕"
@@ -20,20 +22,68 @@
                     Background="Transparent" BorderThickness="0" Cursor="Hand"
                     Panel.ZIndex="10"/>
 
-            <!-- Loading shimmer -->
-            <StackPanel x:Name="LoadingPanel" Visibility="Collapsed" Width="260" Margin="14">
+            <!-- ============== Loading panel ==============
+                 Placeholder-bars + spinner row + статус-строка. Шрифты/цвета — из Tokens. -->
+            <StackPanel x:Name="LoadingPanel" Visibility="Collapsed" Width="280" Margin="14">
+                <!-- Header row: word + pos + transcription placeholders -->
                 <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
-                    <Border Width="80" Height="16" CornerRadius="3" Background="{DynamicResource DividerBrush}" Margin="0,0,8,0"/>
-                    <Border Width="40" Height="16" CornerRadius="3" Background="{DynamicResource DividerBrush}" Margin="0,0,8,0"/>
-                    <Border Width="60" Height="16" CornerRadius="3" Background="{DynamicResource DividerBrush}"/>
+                    <Border Width="80" Height="22" CornerRadius="3"
+                            Background="{DynamicResource DividerBrush}" Margin="0,0,8,0"/>
+                    <Border Width="44" Height="16" CornerRadius="999"
+                            Background="{DynamicResource DividerBrush}" Margin="0,4,8,0"
+                            VerticalAlignment="Center"/>
+                    <Border Width="50" Height="14" CornerRadius="3"
+                            Background="{DynamicResource DividerBrush}"
+                            VerticalAlignment="Center"/>
                 </StackPanel>
-                <Separator Margin="0,0,0,10" Background="{DynamicResource DividerBrush}"/>
-                <Border Width="160" Height="22" CornerRadius="3" Background="{DynamicResource DividerBrush}" Margin="0,0,0,8" HorizontalAlignment="Left"/>
-                <Border Width="230" Height="12" CornerRadius="3" Background="{DynamicResource DividerBrush}" Margin="0,0,0,4" HorizontalAlignment="Left"/>
-                <Border Width="180" Height="12" CornerRadius="3" Background="{DynamicResource DividerBrush}" HorizontalAlignment="Left"/>
-                <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
-                    <Border Width="70" Height="24" CornerRadius="3" Background="{DynamicResource DividerBrush}" Margin="0,0,6,0"/>
-                    <Border Width="70" Height="24" CornerRadius="3" Background="{DynamicResource DividerBrush}"/>
+
+                <Line X1="0" X2="1" Stretch="Fill"
+                      Stroke="{DynamicResource LineSoftBrush}" StrokeThickness="1.2"
+                      StrokeDashArray="2 3" Margin="0,0,0,10"/>
+
+                <!-- Translation placeholder -->
+                <Border Width="180" Height="22" CornerRadius="3"
+                        Background="{DynamicResource DividerBrush}"
+                        Margin="0,0,0,10" HorizontalAlignment="Left"/>
+                <!-- Comment placeholders -->
+                <Border Width="240" Height="12" CornerRadius="3"
+                        Background="{DynamicResource DividerBrush}"
+                        Margin="0,0,0,5" HorizontalAlignment="Left"/>
+                <Border Width="180" Height="12" CornerRadius="3"
+                        Background="{DynamicResource DividerBrush}"
+                        HorizontalAlignment="Left"/>
+
+                <!-- Spinner + status row -->
+                <StackPanel Orientation="Horizontal" Margin="0,14,0,0" VerticalAlignment="Center">
+                    <Grid Width="12" Height="12" Margin="0,0,6,0">
+                        <Ellipse Width="12" Height="12"
+                                 Stroke="{DynamicResource AccentBrush}"
+                                 StrokeThickness="1.5"
+                                 StrokeDashArray="3 2"
+                                 RenderTransformOrigin="0.5,0.5">
+                            <Ellipse.RenderTransform>
+                                <RotateTransform x:Name="SpinnerRotate" Angle="0"/>
+                            </Ellipse.RenderTransform>
+                            <Ellipse.Triggers>
+                                <EventTrigger RoutedEvent="Loaded">
+                                    <BeginStoryboard>
+                                        <Storyboard RepeatBehavior="Forever">
+                                            <DoubleAnimation
+                                                Storyboard.TargetName="SpinnerRotate"
+                                                Storyboard.TargetProperty="Angle"
+                                                From="0" To="360" Duration="0:0:0.9"/>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </EventTrigger>
+                            </Ellipse.Triggers>
+                        </Ellipse>
+                    </Grid>
+                    <TextBlock x:Name="LoadingStatusText"
+                               Text="Перевожу…"
+                               FontFamily="{StaticResource UiFontFamily}"
+                               FontSize="10"
+                               Foreground="{DynamicResource TertiaryTextBrush}"
+                               VerticalAlignment="Center"/>
                 </StackPanel>
             </StackPanel>
 
@@ -43,20 +93,42 @@
             <!-- Sentence card -->
             <local:SentenceCardView x:Name="SentenceCard" Visibility="Collapsed"/>
 
-            <!-- Error panel -->
-            <StackPanel x:Name="ErrorPanel" Visibility="Collapsed" Margin="14" Width="240">
-                <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
-                    <TextBlock Text="&#x26A0;" FontSize="15" Foreground="#E24B4A" Margin="0,0,8,0" VerticalAlignment="Center"/>
-                    <TextBlock Text="Не удалось получить перевод" FontSize="13" FontWeight="Medium"
-                               Foreground="#A32D2D" TextWrapping="Wrap"/>
+            <!-- ============== Error panel ============== -->
+            <StackPanel x:Name="ErrorPanel" Visibility="Collapsed" Margin="14" Width="280">
+                <!-- Header: icon + title -->
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,6" VerticalAlignment="Center">
+                    <TextBlock Text="&#x26A0;"
+                               FontSize="16"
+                               Foreground="{DynamicResource BadBrush}"
+                               Margin="0,0,8,0"
+                               VerticalAlignment="Center"/>
+                    <TextBlock Text="Не удалось перевести"
+                               FontFamily="{StaticResource UiFontFamily}"
+                               FontSize="13"
+                               FontWeight="SemiBold"
+                               Foreground="{DynamicResource PrimaryTextBrush}"
+                               VerticalAlignment="Center"
+                               TextWrapping="Wrap"/>
                 </StackPanel>
-                <TextBlock Text="Проверьте API ключ и соединение" FontSize="12"
-                           Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,0,0,10"/>
+
+                <!-- Body text -->
+                <TextBlock x:Name="ErrorBodyText"
+                           Text="Сервер не отвечает или ключ некорректен. Проверь интернет и API-ключ в настройках."
+                           FontFamily="{StaticResource UiFontFamily}"
+                           FontSize="11"
+                           Foreground="{DynamicResource SecondaryTextBrush}"
+                           TextWrapping="Wrap"
+                           LineHeight="16"
+                           Margin="0,0,0,12"/>
+
+                <!-- Action buttons: Retry primary, Settings ghost -->
                 <StackPanel Orientation="Horizontal">
-                    <Button x:Name="RetryButton" Content="Повторить"
-                            Style="{StaticResource SmallOutlineButton}" Margin="0,0,6,0"/>
-                    <Button x:Name="SettingsButton" Content="Настройки"
-                            Style="{StaticResource SmallOutlineButton}"/>
+                    <Button x:Name="RetryButton" Content="↻ Повторить"
+                            Style="{StaticResource SmallOutlineButton}"
+                            Margin="0,0,6,0"/>
+                    <Button x:Name="SettingsButton" Content="⚙ Настройки"
+                            Style="{StaticResource SmallOutlineButton}"
+                            Foreground="{DynamicResource TertiaryTextBrush}"/>
                 </StackPanel>
             </StackPanel>
         </Grid>
